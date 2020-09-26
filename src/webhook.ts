@@ -42,6 +42,8 @@ export async function webhookHandler(req:Request, res:Response) {
                     // do something and push to botnoi platform
                     const result = await axios.post(BOTNOI_WEBHOOK || '', req.body)
                 }
+            } else {
+                const result = await axios.post(BOTNOI_WEBHOOK || '', req.body)
             }
         })
         return res.send()
