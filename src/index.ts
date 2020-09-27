@@ -4,6 +4,7 @@ import express, {Request, Response} from 'express'
 import bodyParser from 'body-parser'
 import { lineMiddleware } from './line'
 import { webhookHandler } from './webhook'
+import { userUpdateLineIdHandler } from './user'
 import { RequestError } from '@line/bot-sdk'
 
 const {PORT = 8000} = process.env
@@ -15,6 +16,8 @@ function main() {
     app.use(bodyParser.json())
 
     app.post('/webhook', webhookHandler)
+
+    app.get('/user/updateLineId',userUpdateLineIdHandler)
 
     app.post('/dialog', (req:Request, res:Response) => {
         console.log(req.body)

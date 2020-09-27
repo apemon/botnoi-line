@@ -8,7 +8,7 @@ const {BOTNOI_WEBHOOK} = process.env
 
 if (!BOTNOI_WEBHOOK) {
     throw new Error('Botnoi webhook is not present.')
-  }
+}
 
 export async function webhookHandler(req:Request, res:Response) {
     try {
