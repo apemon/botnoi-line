@@ -219,4 +219,4 @@ build
 
 .env
 *credential*.json
-src/*.d.ts
+*.d.ts
