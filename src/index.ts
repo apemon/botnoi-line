@@ -6,6 +6,7 @@ import { lineMiddleware } from './line'
 import { webhookHandler } from './webhook'
 import { userUpdateLineIdHandler } from './user'
 import { RequestError } from '@line/bot-sdk'
+import {pushMessageHandler} from './util'
 
 const {PORT = 8000} = process.env
 
@@ -18,6 +19,8 @@ function main() {
     app.post('/webhook', webhookHandler)
 
     app.get('/user/updateLineId',userUpdateLineIdHandler)
+
+    app.post('/util/push', pushMessageHandler)
 
     app.post('/dialog', (req:Request, res:Response) => {
         console.log(req.body)
