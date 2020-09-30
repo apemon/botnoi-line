@@ -1,16 +1,6 @@
 import 'dotenv/config'
 import {Request, Response} from 'express'
-import Airtable from 'airtable'
-
-const {AIRTABLE_APIKEY, AIRTABLE_BASEID} = process.env
-
-if (!AIRTABLE_APIKEY || !AIRTABLE_BASEID) {
-    throw new Error('Airtable config is not present.')
-}
-
-const airtable = new Airtable({
-    apiKey: AIRTABLE_APIKEY
-}).base(AIRTABLE_BASEID)
+import {client} from './airtable_client'
 
 function _constructQuery(q:string): string {
     console.log(q)
@@ -39,7 +29,7 @@ export async function userUpdateLineIdHandler(req:Request, res:Response) {
     const query = _constructQuery(q)
     console.log(query)
     try {
-        const lists = await airtable('Profile').select({
+        const lists = await client('Profile').select({
             filterByFormula: query
         })
         const rows = await lists.all()

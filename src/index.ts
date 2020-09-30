@@ -6,7 +6,7 @@ import { lineMiddleware } from './line'
 import { webhookHandler } from './webhook'
 import { userUpdateLineIdHandler } from './user'
 import { RequestError } from '@line/bot-sdk'
-import {pushMessageHandler} from './util'
+import {pushMessageHandler,getContentHandler} from './util'
 
 const {PORT = 8000} = process.env
 
@@ -21,6 +21,14 @@ function main() {
     app.get('/user/updateLineId',userUpdateLineIdHandler)
 
     app.post('/util/push', pushMessageHandler)
+    app.get('/util/content/:id', getContentHandler)
+
+    app.get('/ping', (req:Request, res:Response) => {
+        console.log(req.query)
+        res.send({
+            msg: 'hello world ' + req.query.food_name?.toString()
+        })
+    })
 
     app.post('/dialog', (req:Request, res:Response) => {
         console.log(req.body)
