@@ -5,6 +5,7 @@ import bodyParser from 'body-parser'
 import { lineMiddleware } from './line'
 import { webhookHandler } from './webhook'
 import { userUpdateLineIdHandler } from './user'
+import {get_cal} from './food'
 import { RequestError } from '@line/bot-sdk'
 import {pushMessageHandler,getContentHandler} from './util'
 
@@ -24,7 +25,6 @@ function main() {
     app.get('/util/content/:id', getContentHandler)
 
     app.get('/ping', (req:Request, res:Response) => {
-        console.log(req.query)
         res.send({
             msg: 'hello world ' + req.query.food_name?.toString()
         })
@@ -37,6 +37,12 @@ function main() {
 
     app.get('/', (_req:Request, res:Response) => {
         return res.send('hello world')
+    })
+
+    app.get('/food' , async (req:Request, res:Response) => {
+        const food_name = req.query.food_name || ''
+        console.log(food_name)
+        return res.send(await get_cal(food_name.toString()))
     })
 
     app.listen(PORT, () => {

@@ -1,6 +1,6 @@
 import 'dotenv/config'
 import {Request, Response} from 'express'
-import {client as airtable} from './airtable_client'
+import {client as airtable, client} from './airtable_client'
 import {client as line}  from './line'
 import axios from 'axios'
 import { resolve } from 'path'
@@ -46,4 +46,16 @@ export async function predict(img:string) {
     } catch (err) {
         console.log(err)
     }
+}
+
+export async function get_cal(food_name:string) {
+    const food_query = `Name = '${food_name.trim()}'`
+    const lists = await client('FoodCal').select
+    ({
+        filterByFormula: food_query
+    })
+    const rows = await lists.all()
+    const data = rows[0]
+    console.log(data.fields)
+    return data.fields
 }
