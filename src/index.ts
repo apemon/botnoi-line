@@ -4,8 +4,8 @@ import express, {Request, Response} from 'express'
 import bodyParser from 'body-parser'
 import { lineMiddleware } from './line'
 import { webhookHandler } from './webhook'
-import { userUpdateLineIdHandler } from './user'
-import {get_cal} from './food'
+import { getUserByLineId, userUpdateLineIdHandler } from './user'
+import {botTrackFood, calculateCal, getFoodCal, trackFood} from './food'
 import { RequestError } from '@line/bot-sdk'
 import {pushMessageHandler,getContentHandler} from './util'
 
@@ -20,6 +20,11 @@ function main() {
     app.post('/webhook', webhookHandler)
 
     app.get('/user/updateLineId',userUpdateLineIdHandler)
+    app.get('/user/query', async (req:Request, res:Response) => {
+        const line_id = req.query.line_id?.toString() || ''
+        const user = await getUserByLineId(line_id)
+        return res.send(user)
+    })
 
     app.post('/util/push', pushMessageHandler)
     app.get('/util/content/:id', getContentHandler)
@@ -42,8 +47,29 @@ function main() {
     app.get('/food' , async (req:Request, res:Response) => {
         const food_name = req.query.food_name || ''
         console.log(food_name)
-        return res.send(await get_cal(food_name.toString()))
+        try {
+            const result = await getFoodCal(food_name.toString())
+            return res.send(result)
+        } catch (err) {
+            return res.status(400).send({
+                err: 'Not Found'
+            })
+        }
     })
+
+    app.get('/food/cal' , async (req:Request, res:Response) => {
+        const line_id = req.query.line_id?.toString() || ''
+        try {
+            const result = await calculateCal(line_id, new Date())
+            return res.send(result)
+        } catch (err) {
+            return res.status(400).send({
+                err: 'Not Found'
+            })
+        }
+    })
+
+    app.get('/food/track', botTrackFood)
 
     app.listen(PORT, () => {
         console.log(`Server started at 0.0.0.0:${PORT}`)
