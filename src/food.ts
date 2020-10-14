@@ -8,6 +8,8 @@ import { resolve } from 'path'
 import { rejects } from 'assert'
 import NodeCache from 'node-cache'
 import {DateTime} from 'luxon'
+import { foodCal } from 'types/foodCal'
+import { foodPredict } from 'types/foodPredict'
 
 const {FOOD_PREDICT_API, FOOD_UPLOAD_API} = process.env
 
@@ -53,30 +55,24 @@ export async function predict(img:string) {
     }
 }
 
-export async function getFoodCal(food_name:string) {
-    if(food_cache.has(food_name))
-        return food_cache.get(food_name)
+export async function getFood(food_name:string):Promise<foodCal|null> {
     const food_query = `Name = '${food_name.trim()}'`
-    try {
-        const lists = await client('FoodCal').select
-        ({
-            filterByFormula: food_query
-        })
-        const rows = await lists.all()
-        if(rows.length > 0) {
-            const data = rows[0]
-            // store to cache
-            food_cache.set(data.fields['Name'], data.fields)
-            return data.fields
-        }
-        return {
-            Name: food_name,
-            err: 'Not Found'
-        }
-    } catch (err) {
-        console.log(err)
-        throw err
+    const lists = await client('FoodCal').select({
+        filterByFormula: food_query
+    })
+    const rows = await lists.all()
+    if(rows.length == 0)
+        return null
+    const data = rows[0]
+    const food:foodCal = {
+        name: data.fields['Name'],
+        quantity: data.fields['Quantity'],
+        unit: data.fields['Unit'],
+        calories: data.fields['Calories'],
+        image: data.fields['Image']
     }
+    food_cache.set(food.name, food)
+    return food
 }
 
 export function calculateBMR(gender:string, age:number, weight:number, height:number, activity:number) {
@@ -102,13 +98,13 @@ export function calculateBMR(gender:string, age:number, weight:number, height:nu
 }
 
 export async function trackFood(line_id:string, food_name: string) {
-    const food = await getFoodCal(food_name)
+    const food = await getFood(food_name)
     // track food
     try {
         let calories = 0
-        if(!food.err)
-            calories = food['Calories']
-        client('FoodConSume').create([{
+        if(food != null)
+            calories = food.calories
+        await client('FoodConSume').create([{
             "fields": {
                 "LineUserId": line_id,
                 "FoodName": food_name,
@@ -136,31 +132,34 @@ export async function calculateCal(line_id:string, date:Date):Promise<number> {
     return total_cal
 }
 
-export async function botTrackFood(req:Request, res:Response) {
+export async function botTrackFood(line_id:string, food_name:string) {
+    const food = await trackFood(line_id, food_name)
+    // construct message for bot response
+    let msg = ''
+    if(food == null)
+        msg = `บันทึก ${food_name} เรียบร้อย เนื่องจากบอทไม่พบเมนูนี้ในฐานข้อมูล จึงยังไม่ได้คำนวณค่าแคลลอรี่ของเมนูนี้ ต้องขออภัยด้วยครับ`
+    else {
+        msg = `${food_name} ให้พลังงาน ${food.calories} kcal บันทึกเรียบร้อยครับ `
+        // calculate current & remaining cal for existing user
+        const user = await getUserByLineId(line_id)
+        if(user != null) {
+            const total_cal = await calculateCal(line_id, new Date())
+            const remaining_cal = user.bmr - total_cal
+            msg += `โดยวันนี้คุณได้กินไปแล้ว ${total_cal} kcal `
+            if(remaining_cal < 0)
+                msg += `ซึ่งเกินค่าพลังงานที่ใช้ในแต่ละวันไปแล้ว ${Math.abs(remaining_cal)} kcal ครับ`
+            else 
+                msg += `ซึ่งสามารถกินได้อีก ${remaining_cal} kcal ครับ`
+        }
+    }
+    return msg
+}
+
+export async function botnoiTrackFood(req:Request, res:Response) {
     const line_id = req.query.customer_id?.toString() || ''
     const food_name = req.query.food_name?.toString() || ''
     try {
-        const food = await trackFood(line_id, food_name)
-        // construct message for bot response
-        let msg = ''
-        console.log(food)
-        if(food.err)
-            msg = `บันทึก ${food_name} เรียบร้อย เนื่องจากบอทไม่พบเมนูนี้ในฐานข้อมูล จึงยังไม่ได้คำนวณค่าแคลลอรี่ของเมนูนี้ ต้องขออภัยด้วยครับ`
-        else {
-            msg = `${food_name} ให้พลังงาน ${food.Calories} kcal บันทึกเรียบร้อยครับ `
-            // calculate current & remaining cal for existing user
-            const user = await getUserByLineId(line_id)
-            if(user != null) {
-                const total_cal = await calculateCal(line_id, new Date())
-                const remaining_cal = user.bmr - total_cal
-                msg += `โดยวันนี้คุณได้กินไปแล้ว ${total_cal} kcal `
-                if(remaining_cal < 0)
-                    msg += `ซึ่งเกินค่าพลังงานที่ใช้ในแต่ละวันไปแล้ว ${Math.abs(remaining_cal)} kcal ครับ`
-                else 
-                    msg += `ซึ่งสามารถกินได้อีก ${remaining_cal} kcal ครับ`
-            }
-        }
-        console.log(msg)
+        const msg = await botTrackFood(line_id, food_name)
         return res.send({
             msg: msg
         })
@@ -169,5 +168,25 @@ export async function botTrackFood(req:Request, res:Response) {
         return res.status(400).send({
             err:err
         })
+    }
+}
+
+export async function trackPredict(predict:foodPredict) {
+    console.log(predict)
+    try {
+        await client('FoodPredict').create([{
+            'fields': {
+                'LineUserId': predict.line_id,
+                'Image': predict.image,
+                'Predicted_Food': predict.predicted_food,
+                'Predicted_Prob': predict.predicted_prob,
+                'Predicted_Time': DateTime.fromJSDate(predict.predicted_time).toISO(),
+                'UserFeedback': predict.user_correct,
+                'UserPurposeFood': predict.user_purpose_food?.toString()
+            }
+        }])
+    } catch (err) {
+        console.log(err)
+        throw err
     }
 }

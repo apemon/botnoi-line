@@ -5,7 +5,7 @@ import bodyParser from 'body-parser'
 import { lineMiddleware } from './line'
 import { webhookHandler } from './webhook'
 import { getUserByLineId, userUpdateLineIdHandler } from './user'
-import {botTrackFood, calculateCal, getFoodCal, trackFood} from './food'
+import {botnoiTrackFood, calculateCal, getFood} from './food'
 import { RequestError } from '@line/bot-sdk'
 import {pushMessageHandler,getContentHandler} from './util'
 
@@ -48,7 +48,7 @@ function main() {
         const food_name = req.query.food_name || ''
         console.log(food_name)
         try {
-            const result = await getFoodCal(food_name.toString())
+            const result = await getFood(food_name.toString())
             return res.send(result)
         } catch (err) {
             return res.status(400).send({
@@ -69,7 +69,7 @@ function main() {
         }
     })
 
-    app.get('/food/track', botTrackFood)
+    app.get('/food/track', botnoiTrackFood)
 
     app.listen(PORT, () => {
         console.log(`Server started at 0.0.0.0:${PORT}`)
