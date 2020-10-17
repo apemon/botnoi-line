@@ -5,7 +5,7 @@ import bodyParser from 'body-parser'
 import { lineMiddleware } from './line'
 import { webhookHandler } from './webhook'
 import { getUserByLineId, userUpdateLineIdHandler } from './user'
-import {botnoiTrackFood, calculateCal, getFood} from './food'
+import {botnoiTrackFood, calculateCal, getFood, botnoiConfirmPredict, botnoiCorrectPredict} from './food'
 import { RequestError } from '@line/bot-sdk'
 import {pushMessageHandler,getContentHandler} from './util'
 
@@ -70,6 +70,8 @@ function main() {
     })
 
     app.get('/food/track', botnoiTrackFood)
+    app.get('/food/predict/confirm', botnoiConfirmPredict)
+    app.get('/food/predict/correct', botnoiCorrectPredict)
 
     app.listen(PORT, () => {
         console.log(`Server started at 0.0.0.0:${PORT}`)

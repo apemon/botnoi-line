@@ -15,7 +15,7 @@ if (!BOTNOI_WEBHOOK) {
     throw new Error('Botnoi webhook is not present.')
 }
 
-const prediction_cache = new NodeCache({stdTTL: 1800, checkperiod: 600})
+
 export async function webhookHandler(req:Request, res:Response) {
     try {
         const {events} = req.body as WebhookRequestBody
@@ -77,46 +77,22 @@ export async function webhookHandler(req:Request, res:Response) {
                                 {
                                     type:'action',
                                     action: {
-                                        type: 'postback',
-                                        label: 'ยืนยันผลถูกต้อง',
-                                        displayText: 'ยืนยันผลถูกต้อง',
-                                        data: `action=confirm_food_predict&image=${food_predict.image}&food=${food_predict.predicted_food}&prob=${food_predict.predicted_prob}&time=${food_predict.predicted_time}`
+                                        type: 'message',
+                                        text: 'ยืนยันผลถูกต้อง',
+                                        label: 'ยืนยันผลถูกต้อง'
                                     }
                                 },{
                                     type:'action',
                                     action: {
-                                        type: 'postback',
-                                        label: 'แก้ไขผลการทำนาย',
-                                        displayText: 'แก้ไขผลการทำนาย',
-                                        data: `action=correct_food_predict&image=${food_predict.image}&food=${food_predict.predicted_food}&prob=${food_predict.predicted_prob}&time=${food_predict.predicted_time}`
+                                        type: 'message',
+                                        text: 'แก้ไขผลการทำนาย',
+                                        label: 'แก้ไขผลการทำนาย'
                                     }
                                 }
                             ]
                         }
                     })
-                    await trackPredict(food_predict)
-                    // store id to cache
-                } else {
-                    const result = await axios.post(BOTNOI_WEBHOOK || '', req.body)
-                }
-            } else if(evt.type == 'postback') {
-                if(evt.source.type == 'user') {
-                    const userId = evt.source.userId
-                    const qs = querystring.parse(evt.postback.data)
-                    if(qs.action == 'confirm_food_predict') {
-                        await client.replyMessage(evt.replyToken, {
-                            type:'text',
-                            text: `เย้ทายถูกด้วย ขอบคุณมากๆครับ`
-                        })
-                        // update to airtable
-                    } else if(qs.action == 'correct_food_predict') {
-                        await client.replyMessage(evt.replyToken, {
-                            type:'text',
-                            text: `กรุณาใส่ชื่อเมนูอาหารครับ`
-                        })
-                    } else {
-                        const result = await axios.post(BOTNOI_WEBHOOK || '', req.body)
-                    }
+                    const id = await trackPredict(food_predict)
                 } else {
                     const result = await axios.post(BOTNOI_WEBHOOK || '', req.body)
                 }

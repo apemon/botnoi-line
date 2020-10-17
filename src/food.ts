@@ -18,6 +18,7 @@ if (!FOOD_PREDICT_API || !FOOD_UPLOAD_API) {
 }
 
 const food_cache = new NodeCache({stdTTL: 1800, checkperiod: 600})
+const prediction_cache = new NodeCache({stdTTL: 1800, checkperiod: 600})
 
 export async function upload(msg_id:string):Promise<string> {
     const wait :Promise<string> = new Promise(async (resolve, reject) => {
@@ -155,6 +156,39 @@ export async function botTrackFood(line_id:string, food_name:string) {
     return msg
 }
 
+export async function trackPredict(predict:foodPredict) {
+    try {
+        const results = await client('FoodPredict').create([{
+            'fields': {
+                'LineUserId': predict.line_id,
+                'Image': predict.image,
+                'Predicted_Food': predict.predicted_food,
+                'Predicted_Prob': predict.predicted_prob,
+                'Predicted_Time': DateTime.fromJSDate(predict.predicted_time).toISO(),
+                'UserFeedback': predict.user_correct,
+                'UserPurposeFood': predict.user_purpose_food?.toString()
+            }
+        }])
+        const id = results[0].id
+        prediction_cache.set(predict.line_id, id)
+        return id
+    } catch (err) {
+        console.log(err)
+        throw err
+    }
+}
+
+export async function updatePredictionResult(line_id:string, result:boolean, user_purpose:string = '') {
+    const id = prediction_cache.get(line_id)
+    await client('FoodPredict').update([{
+        id: id,
+        fields: {
+            UserFeedback: result?'true':'false',
+            UserPurposeFood: user_purpose
+        }
+    }])
+}
+
 export async function botnoiTrackFood(req:Request, res:Response) {
     const line_id = req.query.customer_id?.toString() || ''
     const food_name = req.query.food_name?.toString() || ''
@@ -171,22 +205,29 @@ export async function botnoiTrackFood(req:Request, res:Response) {
     }
 }
 
-export async function trackPredict(predict:foodPredict) {
-    console.log(predict)
+export async function botnoiConfirmPredict(req:Request, res:Response) {
+    const line_id = req.query.customer_id?.toString() || ''
     try {
-        await client('FoodPredict').create([{
-            'fields': {
-                'LineUserId': predict.line_id,
-                'Image': predict.image,
-                'Predicted_Food': predict.predicted_food,
-                'Predicted_Prob': predict.predicted_prob,
-                'Predicted_Time': DateTime.fromJSDate(predict.predicted_time).toISO(),
-                'UserFeedback': predict.user_correct,
-                'UserPurposeFood': predict.user_purpose_food?.toString()
-            }
-        }])
+        await updatePredictionResult(line_id, true)
+        return res.status(204).send()
     } catch (err) {
         console.log(err)
-        throw err
+        return res.status(400).send({
+            err:err
+        }) 
+    }
+}
+
+export async function botnoiCorrectPredict(req:Request, res:Response) {
+    const line_id = req.query.customer_id?.toString() || ''
+    const food_name = req.query.food_name?.toString() || ''
+    try {
+        await updatePredictionResult(line_id, false, food_name)
+        return res.status(204).send()
+    } catch (err) {
+        console.log(err)
+        return res.status(400).send({
+            err:err
+        }) 
     }
 }
