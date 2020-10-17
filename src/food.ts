@@ -133,14 +133,17 @@ export async function calculateCal(line_id:string, date:Date):Promise<number> {
     return total_cal
 }
 
-export async function botTrackFood(line_id:string, food_name:string) {
+export async function botTrackFood(line_id:string, food_name:string, repeat_food_cal:boolean = true) {
     const food = await trackFood(line_id, food_name)
     // construct message for bot response
     let msg = ''
     if(food == null)
         msg = `บันทึก ${food_name} เรียบร้อย เนื่องจากบอทไม่พบเมนูนี้ในฐานข้อมูล จึงยังไม่ได้คำนวณค่าแคลลอรี่ของเมนูนี้ ต้องขออภัยด้วยครับ`
     else {
-        msg = `${food_name} ให้พลังงาน ${food.calories} kcal บันทึกเรียบร้อยครับ `
+        if(repeat_food_cal)
+            msg = `${food_name} ให้พลังงาน ${food.calories} kcal บันทึกเรียบร้อยครับ `
+        else
+            msg = `บันทึกเรียบร้อยครับ `
         // calculate current & remaining cal for existing user
         const user = await getUserByLineId(line_id)
         if(user != null) {

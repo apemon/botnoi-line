@@ -3,7 +3,7 @@ import axios from 'axios'
 import e, {Request, Response} from 'express'
 import {WebhookRequestBody, Group, WebhookEvent, Message} from '@line/bot-sdk'
 import {client} from './line'
-import {upload,predict, botTrackFood, getFood, trackPredict} from './food'
+import {upload,predict, botTrackFood, getFood, trackPredict, updatePredictionResult, trackFood} from './food'
 import querystring from 'querystring'
 import { foodPredict } from 'types/foodPredict'
 import { DateTime } from 'luxon'
@@ -88,11 +88,38 @@ export async function webhookHandler(req:Request, res:Response) {
                                         text: 'แก้ไขผลการทำนาย',
                                         label: 'แก้ไขผลการทำนาย'
                                     }
+                                },{
+                                    type:'action',
+                                    action: {
+                                        type: 'postback',
+                                        displayText: `กิน${predict_result.class}`,
+                                        label: 'บันทึกการกิน',
+                                        data: `action=confirm_track_predict&food=${predict_result.class}`
+                                    }
                                 }
                             ]
                         }
                     })
                     const id = await trackPredict(food_predict)
+                } else {
+                    const result = await axios.post(BOTNOI_WEBHOOK || '', req.body)
+                }
+            } else if(evt.type == 'postback') {
+                if(evt.source.type == 'user') {
+                    const userId = evt.source.userId
+                    const qs = querystring.parse(evt.postback.data)
+                    if(qs.action == 'confirm_track_predict') {
+                        console.log(qs.food)
+                        const food = qs.food?.toString() || ''
+                        await updatePredictionResult(userId, true)
+                        const msg = await botTrackFood(userId, food, false)
+                        await client.replyMessage(evt.replyToken, {
+                            type: 'text',
+                            text: msg
+                        })
+                    } else {
+                        const result = await axios.post(BOTNOI_WEBHOOK || '', req.body)
+                    }
                 } else {
                     const result = await axios.post(BOTNOI_WEBHOOK || '', req.body)
                 }
