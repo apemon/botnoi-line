@@ -2,14 +2,16 @@ import 'dotenv/config'
 import {Request, Response} from 'express'
 import {client as airtable, client} from './airtable_client'
 import {client as line}  from './line'
-import {getUserByLineId} from './user'
+import {getRawUser, getUserByLineId} from './user'
 import axios from 'axios'
 import { resolve } from 'path'
 import { rejects } from 'assert'
 import NodeCache from 'node-cache'
-import {DateTime} from 'luxon'
 import { foodCal } from 'types/foodCal'
 import { foodPredict } from 'types/foodPredict'
+import { FlexMessage } from '@line/bot-sdk'
+import moment from 'moment'
+import { dailySummary, foodConsume } from 'types/dailySummary'
 
 const {FOOD_PREDICT_API, FOOD_UPLOAD_API} = process.env
 
@@ -110,7 +112,7 @@ export async function trackFood(line_id:string, food_name: string) {
                 "LineUserId": line_id,
                 "FoodName": food_name,
                 "Calories": calories,
-                "Date": DateTime.local().toISODate()
+                "Date": moment().format('YYYY-MM-DD')
             }
         }])
         return food
@@ -120,12 +122,59 @@ export async function trackFood(line_id:string, food_name: string) {
     }
 }
 
-export async function calculateCal(line_id:string, date:Date):Promise<number> {
-    const query = `AND(LineUserId = '${line_id}', IS_SAME({Date},'${DateTime.fromJSDate(date).toISODate()}', 'day'))`
+export async function getRawDailyConsume(line_id:string, date:Date) {
+    const query = `AND(LineUserId = '${line_id}', IS_SAME({Date},'${moment(date).format('YYYY-MM-DD')}', 'day'))`
     const lists = await client('FoodConsume').select({
-        filterByFormula: query
+        filterByFormula: query,
+        sort: [
+            {
+                field: 'Created',
+                direction: 'asc'
+            }
+        ]
     })
     const rows = await lists.all()
+    return rows
+}
+
+export async function getDailySummary(line_id:string, date:Date):Promise<dailySummary> {
+    const offset = moment(date).tz('Asia/Bangkok').utcOffset()
+    const utc_date = moment(date).add(offset, 'minute').toDate()
+    const rows = await getRawDailyConsume(line_id, utc_date)
+    const user = await getUserByLineId(line_id)
+    let total_cal = 0
+    let consumes:foodConsume[] = []
+    rows.forEach(row => {
+        const consume:foodConsume = {
+            date: moment(row.fields['Created']).add(offset,'minute').toDate(),
+            cal: row.fields['Calories'],
+            food: row.fields['FoodName']
+        }
+        total_cal += consume.cal
+        consumes.push(consume)
+    })
+    const bmr = user?.bmr || 0
+    let status_text = 'เหลือ'
+    let status_color = '#00ff00'
+    let status_cal = Math.abs(total_cal - bmr)
+    if(total_cal > bmr) {
+        status_text = 'เกิน'
+        status_color = '#ff4000'
+    }
+    let summary:dailySummary = {
+        bmr_cal: user?.bmr || 0,
+        consume_cal: total_cal,
+        date: utc_date,
+        foods: consumes,
+        status_cal: status_cal,
+        status_color: status_color,
+        status_text: status_text
+    }
+    return summary
+}
+
+export async function calculateCal(line_id:string, date:Date):Promise<number> {
+    const rows = await getRawDailyConsume(line_id, date)
     let total_cal = 0
     rows.forEach(row => {
         total_cal += row.fields['Calories']
@@ -167,7 +216,7 @@ export async function trackPredict(predict:foodPredict) {
                 'Image': predict.image,
                 'Predicted_Food': predict.predicted_food,
                 'Predicted_Prob': predict.predicted_prob,
-                'Predicted_Time': DateTime.fromJSDate(predict.predicted_time).toISO(),
+                'Predicted_Time': moment(predict.predicted_time).toISOString(),
                 'UserFeedback': predict.user_correct,
                 'UserPurposeFood': predict.user_purpose_food?.toString()
             }

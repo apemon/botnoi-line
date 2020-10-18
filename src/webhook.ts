@@ -1,13 +1,12 @@
 import 'dotenv/config'
 import axios from 'axios'
 import e, {Request, Response} from 'express'
-import {WebhookRequestBody, Group, WebhookEvent, Message} from '@line/bot-sdk'
-import {client} from './line'
-import {upload,predict, botTrackFood, getFood, trackPredict, updatePredictionResult, trackFood} from './food'
+import {WebhookRequestBody, Group, WebhookEvent, Message, FlexContainer} from '@line/bot-sdk'
+import {client, generateDailySummaryFlex} from './line'
+import {upload,predict, botTrackFood, getFood, trackPredict, updatePredictionResult, getDailySummary} from './food'
 import querystring from 'querystring'
 import { foodPredict } from 'types/foodPredict'
-import { DateTime } from 'luxon'
-import NodeCache from 'node-cache'
+import moment from 'moment-timezone'
 
 const {BOTNOI_WEBHOOK} = process.env
 
@@ -44,6 +43,14 @@ export async function webhookHandler(req:Request, res:Response) {
                         await client.replyMessage(evt.replyToken, {
                             type: 'text',
                             text: msg
+                        })
+                    } else if(evt.message.text == 'สรุปผลประจำวัน') {
+                        const summary = await getDailySummary(userId, moment().local().tz('Asia/Bangkok').toDate())
+                        const flex = await generateDailySummaryFlex(summary)
+                        await client.replyMessage(evt.replyToken, {
+                            type:'flex',
+                            altText: 'daily summary flex message',
+                            contents: flex
                         })
                     } else {
                         const result = await axios.post(BOTNOI_WEBHOOK || '', req.body)
