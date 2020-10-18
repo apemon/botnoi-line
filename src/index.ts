@@ -73,18 +73,6 @@ function main() {
     app.get('/food/track', botnoiTrackFood)
     app.get('/food/predict/confirm', botnoiConfirmPredict)
     app.get('/food/predict/correct', botnoiCorrectPredict)
-    app.get('/food/bmr', (req:Request,res:Response) => {
-        return res.send({
-            bmr_cal:2000,
-            date_msg: '18 มิถุนายน 2563',
-            consume_cal: 3000,
-            status_text: 'เกิน',
-            status_cal: 1000,
-            consume_date_list: '18:00\n20:00',
-            //consume_food_list:'ข้าวมันไก่\nข้าวขาหมู',
-            //consume_cal_list: '1500 kcal\n1500 kcal'
-        })
-    })
 
     app.get('/test', (req:Request,res:Response) => {
         const a = new Date()

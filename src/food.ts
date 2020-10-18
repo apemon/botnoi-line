@@ -102,6 +102,7 @@ export function calculateBMR(gender:string, age:number, weight:number, height:nu
 
 export async function trackFood(line_id:string, food_name: string) {
     const food = await getFood(food_name)
+    const offset = moment().tz('Asia/Bangkok').utcOffset()
     // track food
     try {
         let calories = 0
@@ -112,7 +113,7 @@ export async function trackFood(line_id:string, food_name: string) {
                 "LineUserId": line_id,
                 "FoodName": food_name,
                 "Calories": calories,
-                "Date": moment().format('YYYY-MM-DD')
+                "Date": moment().add(offset, 'minute').format('YYYY-MM-DD')
             }
         }])
         return food
@@ -123,7 +124,8 @@ export async function trackFood(line_id:string, food_name: string) {
 }
 
 export async function getRawDailyConsume(line_id:string, date:Date) {
-    const query = `AND(LineUserId = '${line_id}', IS_SAME({Date},'${moment(date).format('YYYY-MM-DD')}', 'day'))`
+    const offset = moment(date).tz('Asia/Bangkok').utcOffset()
+    const query = `AND(LineUserId = '${line_id}', IS_SAME({Date},'${moment(date).add(offset,'minute').format('YYYY-MM-DD')}', 'day'))`
     const lists = await client('FoodConsume').select({
         filterByFormula: query,
         sort: [
