@@ -183,7 +183,7 @@ export function generateDailySummaryFlex(summary:dailySummary):FlexContainer {
           type: 'text',
           wrap: true,
           color: '#555555',
-          flex: 3,
+          flex: 2,
           align: 'end',
           text: `${consume.cal} kcal`
         }

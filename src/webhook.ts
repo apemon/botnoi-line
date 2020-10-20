@@ -46,6 +46,7 @@ export async function webhookHandler(req:Request, res:Response) {
                         })
                     } else if(evt.message.text == 'สรุปผลประจำวัน') {
                         const summary = await getDailySummary(userId, moment().local().tz('Asia/Bangkok').toDate())
+                        console.log(summary)
                         const flex = await generateDailySummaryFlex(summary)
                         await client.replyMessage(evt.replyToken, {
                             type:'flex',
