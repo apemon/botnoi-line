@@ -59,22 +59,23 @@ export async function predict(img:string) {
 }
 
 export async function getFood(food_name:string):Promise<foodCal|null> {
-    const food_query = `Name = '${food_name.trim()}'`
-    const lists = await client('FoodCal').select({
+    const food_query = `FoodName = '${food_name.trim()}'`
+    const lists = await client('FoodName').select({
         filterByFormula: food_query
     })
     const rows = await lists.all()
     if(rows.length == 0)
         return null
     const data = rows[0]
+    const image = !data.fields['Image'] ? '':data.fields['Image'][0]
     const food:foodCal = {
-        name: data.fields['Name'],
-        quantity: data.fields['Quantity'],
-        unit: data.fields['Unit'],
-        calories: data.fields['Calories'],
-        image: data.fields['Image']
+        name: data.fields['Name'][0],
+        quantity: data.fields['Quantity'][0],
+        unit: data.fields['Unit'][0],
+        calories: data.fields['Calories'][0],
+        image: image
     }
-    food_cache.set(food.name, food)
+    food_cache.set(food_name.trim(), food)
     return food
 }
 
