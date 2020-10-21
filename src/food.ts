@@ -59,7 +59,7 @@ export async function predict(img:string) {
 }
 
 export async function getFood(food_name:string):Promise<foodCal|null> {
-    const food_query = `Name = '${food_name.trim()}'`
+    const food_query = `OR(Name = '${food_name.trim()}', FIND('${food_name.trim()}',{FoodName}))`
     const lists = await client('FoodCal').select({
         filterByFormula: food_query
     })
